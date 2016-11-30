@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title></title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.css' rel='stylesheet' />
+    <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #details {width: 25%; float: left; padding: 1em;}
+        #map-container {width:75%; float: left;}
+        #map { position:absolute; top:0; bottom:0; width: 75%;}
+        input[type=text]:disabled {background: #eee; border-color: #ddd;}
+
+    </style>
+</head>
+<body>
+
+<div class='col12 clearfix'>
+    <div id='details' class=''>
+        <h2>Volunteer for CityIdols!</h2>
+        <div id='info-container'>
+            <p>Click on a <span style='display:inline-block; background: #FFAA00; padding: 1px 5px;' class='round'>highlighted</span> road to volunteer for it.</p>
+            <p>Details about the project show up here. <br /></p>
+        </div>
+        <div id='volunteer-form-container' class='hidden'>
+            <p>Fill in the information below to start researching on the history of this road:</p>
+            <form id='volunteer-form'>
+                <fieldset>
+                  <label>Volunteering for:</label>
+                  <input id='roadName' type='text' value='' class='stretch fill-grey' title='You can’t edit the road name' disabled/>
+                </fieldset>
+                <fieldset>
+                  <label>My name:</label>
+                  <input id='vName' type='text' value='' class='stretch' />
+                </fieldset>
+                <fieldset>
+                  <label>My email:</label>
+                  <input id='vEmail' type='text' value='' class='stretch' />
+                </fieldset>
+                <button id='submit-button' class='button' type='submit'>I volunteer for this road</button>
+            </form>
+        </div>
+        <div id='volunteer-error' class='hidden'>
+            <h3>Sorry, we already have 3 volunteers for this road!</h3>
+            <p>Click on another road to volunteer.</p>
+        </div>
+    </div>
+    <div id='map-container' class=''>
+        <div id='map'></div>
+    </div>
+</div>
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoicmFzYWd5IiwiYSI6Ilk2ay1VMEEifQ.CJfn_CxDfwyN5xaVfx4jaw';
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/rasagy/civxoa6aq006m2jo5w1g3pk1c',
+    zoom: 11,
+    center: [77.605200, 12.984529]
+}); //
+
+map.on('load', function () {
+
+    //Add road data as a tileset
+    map.addSource('cityidols-blr-lines-tileset', {
+        type: 'vector',
+        url: 'mapbox://rasagy.civxodmq3000l2sl5ejserexe-30y1t'
+    });
+
+    //Add roads from the tileset
+    map.addLayer({
+            "id": "cityidols-lines",
+            "type": "line",
+            "metadata": {},
+            "source": "cityidols-blr-lines-tileset",
+            "source-layer": "cityidols-blr-lines",
+            "filter": [
+                "==",
+                "$type",
+                "LineString"
+            ],
+            "layout": {
+                "visibility": "visible",
+                "line-cap": "round",
+                "line-join": "miter"
+            },
+            "paint": {
+                "line-width": {
+                    "base": 1.5,
+                    "stops": [
+                        [
+                            7,
+                            0.5
+                        ],
+                        [
+                            11,
+                            1.4
+                        ],
+                        [
+                            20,
+                            32
+                        ]
+                    ]
+                },
+                "line-color": "hsl(40, 100%, 50%)"
+            }
+        }, 'waterway-label');   //Show labels on top of the roads
+
+    map.on('mousemove', function(e) {
+        //Find features under the mouse
+        var features = map.queryRenderedFeatures(e.point, {
+            layers: ['cityidols-lines']
+        });
+
+        //Switch pointer to hand if on top of a road, otherwise make it default
+        map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+
+        //Stop if mouse is not on a road
+        if (!features.length) {
+            return;
+        }
+
+        //*Debug:
+        if(features.length) {
+            console.log("Hovered on: "+features[0].properties.name);
+        }//End of debug*/
+
+        /*Highlight all roads with the same name (to take care of same road with multiple ways)
+        feature = features[0];
+
+        var sameNameRoads = map.querySourceFeatures('cityidols-lines', {
+            sourceLayer: 'cityidols-lines',
+            filter: ['in', 'name', feature.properties.name]
+        });
+        console.log(sameNameRoads);
+        //*/
+
+    });
+
+    map.on('mousedown', function(e) {
+        //Find features under the mouse
+        var features = map.queryRenderedFeatures(e.point, {
+            layers: ['cityidols-lines']
+        });
+
+        
+        if(!features.length) {
+            //If no road was selected
+            console.log("No road selected");
+
+            //Hide form or error in case it’s shown
+            hideLayer('volunteer-error');
+            hideLayer('volunteer-form-container');
+            showLayer('info-container');
+        } else {
+            //If a road was selected
+
+            var selectedRoadName=features[0].properties.name;
+            // console.log("Road selected: "+selectedRoadName);
+            // console.log(features[0]);
+
+            if(findVolunteerCount(selectedRoadName)>=3) {
+                //Show error if there are 3 volunteers
+                showLayer('volunteer-error');
+                hideLayer('info-container');
+            } else {
+                //Show form
+                showLayer('volunteer-form-container');
+                hideLayer('info-container');
+
+                //Set value of road name in the form
+                document.getElementById("roadName").value = selectedRoadName;
+            }
+        }
+    });
+
+});
+
+function findVolunteerCount(rName) {
+    //Check for count from spreadsheet & return
+
+    //For now, returning 1
+    return 1;
+}
+
+function showLayer(layerName) {
+    var e = document.getElementById(layerName);
+
+    if (e.classList.contains('hidden')) {
+        e.classList.remove('hidden');
+    }
+}
+
+function hideLayer(layerName) {
+    var e = document.getElementById(layerName);
+
+    if (!e.classList.contains('hidden')) {
+        e.classList.add('hidden');
+    }
+}
+
+function toggleLayer(layerName) {
+    var e = document.getElementById(layerName);
+    var info = document.getElementById('info-container');
+    if (e.classList.contains('hidden')) {
+        e.classList.remove('hidden');
+        info.classList.add('hidden');
+    }
+    else 
+    {
+        e.classList.add('hidden');
+        info.classList.remove('hidden');
+    }
+}
+
+</script>
+
+</body>
+</html>
