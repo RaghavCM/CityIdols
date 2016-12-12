@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang='en'>
 <head>
   <meta charset='utf-8' />
-  <title></title>
+  <title>City Idols Volunteer Page</title>
   <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
   <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.js'></script>
-  <script src="jquery-3.1.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 
   <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.css' rel='stylesheet' />
   <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
@@ -22,9 +22,9 @@
 <div class='col12 clearfix'>
   <div id='details' class=''>
     <h2>Volunteer for CityIdols!</h2>
-    <div id='welcome-container' class='info-box'>
-      <p>Click on a <span style='display:inline-block; background: #FFAA00; padding: 1px 5px;' class='round'>highlighted</span> road to volunteer for it.</p>
-      <p>Details about the project show up here. <br /></p>
+    <div id='welcome-container' class='info-box'>      
+      <p>The <a href='www.cityidols.org'>City Idols Project</a> is an initiative to research, collate and spread information about people after whom places such as roads, parks and circles are named after.<br /></p>
+      <p>To join the project, click on a <span style='display:inline-block; background: #FFAA00; padding: 1px 5px;' class='round'>highlighted</span> road to volunteer for finding information about it.</p>
     </div>
     <div id='volunteer-form-container' class='hidden info-box'>
       <p>Fill in the information below to start researching on the history of this road:</p>
@@ -59,11 +59,15 @@
 
     <!-- Google Sheets Auth stuff -->
     <div id="authorize-div" style="display: none">
-      <span>There’s an error with Google Spreadsheet Authorization.</span>
+      <p>
+      <br />
+      <span>Since this is your first time on this website, you’ll have to sign in using your Google account:</span>
+      <br /><br />
       <!--Button for the user to click to initiate auth sequence -->
-      <button id="authorize-button" onclick="handleAuthClick(event)">
-        Authorize
+      <button id="authorize-button" class='button' onclick="handleAuthClick(event)">
+        Sign in using Google
       </button>
+      </p>
     </div>
   </div>
 
@@ -197,10 +201,12 @@ function formSubmit() {
 <script type="text/javascript">
 // Your Client ID can be retrieved from your project in the Google
 // Developer Console, https://console.developers.google.com
+
 var CLIENT_ID = '998468721896-f3sgde14ggbh80i6f3apar4pu1kbdg5r.apps.googleusercontent.com';
 
 //Use this if you only want to read from the spreadsheet
 //var SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
+
 var SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 
 /**
@@ -314,12 +320,15 @@ function showVolunteerForRoad(rName) {
     var range = response.result;
     // console.log(response);
     //Todo: fix code for empty spreadsheet
+    //if(!range.values) instead of below
+    //Or range.values = range.values || []; -> Then you don’t need the if statement
     if (range.values.length > 0) {
       for (i = 0; i < range.values.length; i++) {
         var row = range.values[i];
         if(row[2]==rName) {
           roadVolunteerCount++;
             // console.log(row[0]+" has volunteered for "+rName);
+            //Move this part below after loop
             if (roadVolunteerCount==3){
               console.log("Already have 3 volunteers for "+rName);
               //Show error
@@ -370,7 +379,6 @@ function addRoadForVolunteer(rName, vName, vEmail) {
   }).then(function(response) {
     var range = response.result;
     // console.log(response);
-
     //Show error if volunteer has already volunteered for that road or if the road already has 3 volunteers
     if (range.values.length > 0) {
       for (i = 0; i < range.values.length; i++) {
