@@ -5,6 +5,8 @@
     <title></title>
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.js'></script>
+    <script src="jquery-3.1.1.min.js"></script>
+
     <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.css' rel='stylesheet' />
     <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
     <style>
@@ -40,22 +42,26 @@
                   <label>My email:</label>
                   <input id='vEmail' type='text' value='' class='stretch' />
                 </fieldset>
-                <button id='submit-button' class='button' onclick='formSubmit()'>I volunteer for this road</button>
+                <button id='submit-button' type='submit' class='button' onclick='formSubmit(); return false;'>I volunteer for this road</button>
             </form>
         </div>
-        <div id='volunteer-error' class='hidden info-box'>
-            <h3>Sorry, we already have 3 volunteers for this road!</h3>
+        <div id='volunteer-3-error' class='hidden info-box'>
+            <h3>Sorry, we already have 3 volunteers for <span class='volunteeredRoadName'>this road</span>!</h3>
+            <p>Click on another road to volunteer.</p>
+        </div>
+        <div id='volunteer-duplicate-error' class='hidden info-box'>
+            <h3>You’ve already volunteererd for <span class='volunteeredRoadName'>this road</span>!</h3>
             <p>Click on another road to volunteer.</p>
         </div>
         <div id='volunteer-success' class='hidden info-box'>
-            <h3>Successfully volunteered!</h3>
-            <p>Thanks for volunteering to find more details about <span id='volunteeredRoadName'>this road</span>. You can select any other road to volunteer for that as well.</p>
+            <h3>You’ve successfully volunteered!</h3>
+            <p>Thanks for volunteering to find more details about <span class='volunteeredRoadName'>this road</span>. You can volunteer for more roads by clicking on them.</p>
         </div>
 
         <!-- Google Sheets Auth stuff -->
 
         <div id="authorize-div" style="display: none">
-          <span>Authorize access to Google Sheets API</span>
+          <span>There’s an error with Google Spreadsheet Authorization.</span>
           <!--Button for the user to click to initiate auth sequence -->
           <button id="authorize-button" onclick="handleAuthClick(event)">
             Authorize
@@ -63,10 +69,11 @@
         </div>
 
         <!-- Google Sheets debug stuff -->
+        <!--
         <p>
         <hr>
         <pre id="output"></pre>
-    
+        -->
     </div>
 
     <div id='map-container' class=''>
@@ -138,25 +145,25 @@ map.on('load', function () {
         //Switch pointer to hand if on top of a road, otherwise make it default
         map.getCanvas().style.cursor = features.length ? 'pointer' : '';
 
-        //Stop if mouse is not on a road
+        /*Stop if mouse is not on a road
         if (!features.length) {
             return;
         }
+        //*/
 
-        //*Debug:
+        /*Debug:
         if(features.length) {
-            // console.log("Hovered on: "+features[0].properties.name);
+            // console.log("Hovered on: "+features[0].properties.name);            
         }//End of debug*/
 
-        //*Highlight all roads with the same name (to take care of same road with multiple ways)
+        /*
+        //Highlight all roads with the same name (to take care of same road with multiple ways)
         feature = features[0];
 
         var sameNameRoads = map.querySourceFeatures('cityidols-blr-lines-tileset', {
             sourceLayer: 'cityidols-blr-lines',
             filter: ['in', 'name', feature.properties.name]
         });
-
-
         
         // console.log(sameNameRoads);
         //*/
@@ -175,23 +182,27 @@ map.on('load', function () {
             console.log("No road selected");
 
             //Hide form or error in case it’s shown
-            hideLayer('volunteer-error');
-            hideLayer('volunteer-form-container');
-            showLayer('welcome-container');
+            $('.info-box').hide();
+            $('#welcome-container').show();
+            // hideLayer('volunteer-error');
+            // hideLayer('volunteer-form-container');
+            // showLayer('welcome-container');
         } else {
             //If a road was selected
 
             var selectedRoadName=features[0].properties.name;
             // console.log("Road selected: "+selectedRoadName);
             // console.log(features[0]);
+
             showVolunteerForRoad(selectedRoadName);
 
+            /*
             if(findVolunteerCount(selectedRoadName)>=3) {
                 //Show error if there are 3 volunteers
 
             } else {
                 
-            }
+            }//*/
         }
     });
 
@@ -210,7 +221,8 @@ function findVolunteerCount(rName) {
     //For now, returning 1
     return 1;
 }
-
+/*
+//Switched to using jQuery instead of manually writing these.
 function showLayer(layerName) {
     var e = document.getElementById(layerName);
 
@@ -229,7 +241,7 @@ function hideLayer(layerName) {
 
 function hideInfoBoxes() {
     //Hide all div with .info-box instead of manually hiding each layer
-    var i=document.getElementsByClassName('info-box');
+    $('.info-box').hide();
 
 }
 
@@ -246,6 +258,7 @@ function toggleLayer(layerName) {
         info.classList.remove('hidden');
     }
 }
+//*/
 
 </script>
 
@@ -316,16 +329,16 @@ function toggleLayer(layerName) {
       function listVolunteers() {
         gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-          range: 'Sheet1!A2:D',
+          range: 'Sheet1!A2:C',
         }).then(function(response) {
           var range = response.result;
-          console.log(response);
+          // console.log(response);
           if (range.values.length > 0) {
             appendPre('Volunteer list for debugging:');
             for (i = 0; i < range.values.length; i++) {
               var row = range.values[i];
               // Print columns A and E, which correspond to indices 0 and 4.
-              appendPre(row[0] + ' volunteered for:' + row[2]);
+              appendPre(row[0] + ' volunteered for: ' + row[2]);
             }
           } else {
             appendPre('No data found.');
@@ -345,7 +358,7 @@ function toggleLayer(layerName) {
           range: 'Sheet1!A2:S',
         }).then(function(response) {
           var range = response.result;
-          console.log(response);
+          // console.log(response);
           if (range.values.length > 0) {
             // console.log('Road list:');
             // console.log(range.values);
@@ -364,6 +377,7 @@ function toggleLayer(layerName) {
         });
       }
 
+      /*
       function checkForVolunteer(vName) {
         //Check sheet if volunteer exists
 
@@ -372,7 +386,7 @@ function toggleLayer(layerName) {
 
         gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-          range: 'Sheet1!A2:D',
+          range: 'Sheet1!A2:C',
         }).then(function(response) {
           var range = response.result;
           // console.log(response);
@@ -392,37 +406,88 @@ function toggleLayer(layerName) {
           console.log('Error: ' + response.result.error.message);
         });
 
-      }
+      } //*/
 
       function addRoadForVolunteer(rName, vName, vEmail) {
-        //checkForVolunteer
-        //If yes, append road name in Volunteer list and count++
-        
+        //Disable button so you can’t click on it any more
+        $("#submit-button").prop("disabled", true);
 
-        //If no, append row in the sheet
-        //Append volunteer name in road list and count++
+        //Show error if volunteer has already volunteered for that road or if the road already has 3 volunteers
 
-        gapi.client.sheets.spreadsheets.values.append({
+        var duplicateFlag = false;
+        var roadVolunteerCount = 0;
+
+        gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-          range: 'Sheet1!A2:D',
-          valueInputOption: 'RAW',
-          "values": [
-            [vName, vEmail, rName, 1],
-          ],
+          range: 'Sheet1!A2:C',
         }).then(function(response) {
-            console.log(response);
-        }, function(response) {
-          console.log('Error: ' + response.result.error.message);
-        });
+          var range = response.result;
+          console.log(response);
 
+          if (range.values.length > 0) {
+            for (i = 0; i < range.values.length; i++) {
+            var row = range.values[i];
+              if(row[2]==rName) {
+                roadVolunteerCount++;
+                if(row[0]==vName || row[1]==vEmail)
+                {
+                    //Checking for duplicate entries (Name or email)
+                    duplicateFlag = true;
+                    console.log("Already volunteered for "+rName);
+                    //Show error
+                    $('.info-box').hide();
+                    $('#volunteer-duplicate-error').show();
+                    return;
+                } else if(roadVolunteerCount>=3) {
+                    //Checking for volunteer count
+                    console.log("Already have 3 volunteers for "+rName);
+                    //Show error
+                    $('.info-box').hide();
+                    $('#volunteer-3-error').show();
+                    return;
+                }
+              }
+            }
+            //Otherwise, append row in the volunteer sheet
+            if(roadVolunteerCount<3 && !duplicateFlag) {
+                gapi.client.sheets.spreadsheets.values.append({
+                  spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+                  range: 'Sheet1!A2:C',
+                  valueInputOption: 'RAW',
+                  "values": [
+                    [vName, vEmail, rName],
+                  ],
+                }).then(function(response) {
+                    $('.info-box').hide(0, function(){
+                        $('#volunteer-success').show(0, function() {
+                            $("#submit-button").prop("disabled", false);
+                        }); 
+                    });
+                    console.log(response);
+                }, function(response) {
+                  console.log('Error: ' + response.result.error.message);
+                });
+            } else {
+                //Set Submit button to enabled
+                $("#submit-button").prop("disabled", false);
+            }
+
+          } else {
+            appendPre('No data found.');
+          }
+        }, function(response) {
+          appendPre('Error: ' + response.result.error.message);
+        });        
       }
 
       function showVolunteerForRoad(rName) {
         //If vcount>0, show volunteers for that road
         //If vcount=0, no volunteers
-          gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: '1Ix-r3v-Dw5i6eGnakTRrMjuPHL_GsJxEMb4YtHoTDvo',
-          range: 'Sheet1!A2:S',
+        var roadVolunteerCount = 0;
+
+        gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+          range: 'Sheet1!A2:C',
         }).then(function(response) {
           var range = response.result;
           // console.log(response);
@@ -432,30 +497,36 @@ function toggleLayer(layerName) {
             //*
             for (i = 0; i < range.values.length; i++) {
               var row = range.values[i];
-              if(row[1]==rName){
-                  if (row[3]==3){
+              if(row[2]==rName) {
+                  roadVolunteerCount++;
+                  console.log(row[0]+" has volunteered for "+rName);
+                  if (roadVolunteerCount==3){
                     console.log("Already have 3 volunteers for "+rName);
                     //Show error
-                    showLayer('volunteer-error');
-                    hideLayer('welcome-container');
-                  } else if(row[3]==0) {
+                    $('.info-box').hide();
+                    $('#volunteer-3-error').show();
+                    return;
+                  }                
+              }
+            }
+
+            //Finished counting through the list
+            if(roadVolunteerCount==0) {
                     console.log("No volunteers for "+rName);
                     //Show form
-                    showLayer('volunteer-form-container');
-                    hideLayer('welcome-container');
-
-                    //Set value of road name in the form
-                    document.getElementById("roadName").value = rName;                  
-                  } else {
-                    console.log("Total "+row[3]+" volunteer(s) for "+rName+": "+row[2]);
-                    //Show form
-                    showLayer('volunteer-form-container');
-                    hideLayer('welcome-container');
+                    $('.info-box').hide();
+                    $('#volunteer-form-container').show();
 
                     //Set value of road name in the form
                     document.getElementById("roadName").value = rName;
-                  }
-              }
+            } else {
+                    console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName+": "+row[2]);
+                    //Show form
+                    $('.info-box').hide();
+                    $('#volunteer-form-container').show();
+
+                    //Set value of road name in the form
+                    document.getElementById("roadName").value = rName;
             }
             //*/
           } else {
@@ -473,9 +544,9 @@ function toggleLayer(layerName) {
        * @param {string} message Text to be placed in pre element.
        */
       function appendPre(message) {
-        var pre = document.getElementById('output');
-        var textContent = document.createTextNode(message + '\n');
-        pre.appendChild(textContent);
+        // var pre = document.getElementById('output');
+        // var textContent = document.createTextNode(message + '\n');
+        console.log(message);
       }
 </script>
 <script src="https://apis.google.com/js/client.js?onload=checkAuth">
