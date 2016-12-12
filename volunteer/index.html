@@ -31,17 +31,17 @@
       <form id='volunteer-form'>
         <fieldset>
           <label>Volunteering for:</label>
-          <input id='roadName' type='text' value='' class='stretch fill-grey' title='You can’t edit the road name' disabled/>
+          <input id='roadName' type='text' value='' class='stretch fill-grey' title='You can’t edit the road name' disabled required/>
         </fieldset>
         <fieldset>
           <label>My name:</label>
-          <input id='vName' type='text' value='' class='stretch' />
+          <input id='vName' type='text' value='' class='stretch' required />
         </fieldset>
         <fieldset>
           <label>My email:</label>
-          <input id='vEmail' type='text' value='' class='stretch' />
+          <input id='vEmail' type='email' value='' class='stretch' required />
         </fieldset>
-        <button id='submit-button' type='submit' class='button' onclick='formSubmit(); return false;'>I volunteer for this road</button>
+        <button id='submit-button' type='submit' class='button' onclick='/*formSubmit(); return false;*/'>I volunteer for this road</button>
       </form>
     </div>
     <div id='volunteer-3-error' class='hidden info-box'>
@@ -174,9 +174,16 @@ map.on('load', function () {
       showVolunteerForRoad(selectedRoadName);
     }
   });
+
+  $("#volunteer-form").on("submit",function() {
+    //Call function to check and save volunteer details
+    formSubmit();
+    //Prevent page from refreshing
+    return false;
+  });
 });
 
-function formSubmit(event) {
+function formSubmit() {
   var submittedRoad = document.getElementById("roadName").value;
   var submittedName = document.getElementById("vName").value;
   var submittedEmail = document.getElementById("vEmail").value;
@@ -409,7 +416,7 @@ function addRoadForVolunteer(rName, vName, vEmail) {
               $("#submit-button").prop("disabled", false);
             });
           });
-          console.log(response);
+          // console.log(response);
         }, function(response) {
           console.log('Error: ' + response.result.error.message);
         });
