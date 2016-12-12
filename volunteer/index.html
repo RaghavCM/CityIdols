@@ -1,221 +1,438 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset='utf-8' />
-    <title></title>
-    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.css' rel='stylesheet' />
-    <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
-    <style>
-        body { margin:0; padding:0; }
-        #details {width: 25%; float: left; padding: 1em;}
-        #map-container {width:75%; float: left;}
-        #map { position:absolute; top:0; bottom:0; width: 75%;}
-        input[type=text]:disabled {background: #eee; border-color: #ddd;}
+  <meta charset='utf-8' />
+  <title></title>
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.js'></script>
+  <script src="jquery-3.1.1.min.js"></script>
 
-    </style>
+  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.css' rel='stylesheet' />
+  <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
+  <style>
+    body { margin:0; padding:0; }
+    #details {width: 25%; float: left; padding: 1em;}
+    #map-container {width:75%; float: left;}
+    #map { position:absolute; top:0; bottom:0; width: 75%;}
+    input[type=text]:disabled {background: #eee; border-color: #ddd;}
+    pre {font-size: 0.65em;}
+  </style>
 </head>
 <body>
-
 <div class='col12 clearfix'>
-    <div id='details' class=''>
-        <h2>Volunteer for CityIdols!</h2>
-        <div id='info-container'>
-            <p>Click on a <span style='display:inline-block; background: #FFAA00; padding: 1px 5px;' class='round'>highlighted</span> road to volunteer for it.</p>
-            <p>Details about the project show up here. <br /></p>
-        </div>
-        <div id='volunteer-form-container' class='hidden'>
-            <p>Fill in the information below to start researching on the history of this road:</p>
-            <form id='volunteer-form'>
-                <fieldset>
-                  <label>Volunteering for:</label>
-                  <input id='roadName' type='text' value='' class='stretch fill-grey' title='You can’t edit the road name' disabled/>
-                </fieldset>
-                <fieldset>
-                  <label>My name:</label>
-                  <input id='vName' type='text' value='' class='stretch' />
-                </fieldset>
-                <fieldset>
-                  <label>My email:</label>
-                  <input id='vEmail' type='text' value='' class='stretch' />
-                </fieldset>
-                <button id='submit-button' class='button' type='submit'>I volunteer for this road</button>
-            </form>
-        </div>
-        <div id='volunteer-error' class='hidden'>
-            <h3>Sorry, we already have 3 volunteers for this road!</h3>
-            <p>Click on another road to volunteer.</p>
-        </div>
+  <div id='details' class=''>
+    <h2>Volunteer for CityIdols!</h2>
+    <div id='welcome-container' class='info-box'>
+      <p>Click on a <span style='display:inline-block; background: #FFAA00; padding: 1px 5px;' class='round'>highlighted</span> road to volunteer for it.</p>
+      <p>Details about the project show up here. <br /></p>
     </div>
-    <div id='map-container' class=''>
-        <div id='map'></div>
+    <div id='volunteer-form-container' class='hidden info-box'>
+      <p>Fill in the information below to start researching on the history of this road:</p>
+      <form id='volunteer-form'>
+        <fieldset>
+          <label>Volunteering for:</label>
+          <input id='roadName' type='text' value='' class='stretch fill-grey' title='You can’t edit the road name' disabled required/>
+        </fieldset>
+        <fieldset>
+          <label>My name:</label>
+          <input id='vName' type='text' value='' class='stretch' required />
+        </fieldset>
+        <fieldset>
+          <label>My email:</label>
+          <input id='vEmail' type='email' value='' class='stretch' required />
+        </fieldset>
+        <button id='submit-button' type='submit' class='button' onclick='/*formSubmit(); return false;*/'>I volunteer for this road</button>
+      </form>
     </div>
+    <div id='volunteer-3-error' class='hidden info-box'>
+      <h3>Sorry, we already have 3 volunteers for <span class='volunteeredRoadName'>this road</span>!</h3>
+      <p>Click on another road to volunteer.</p>
+    </div>
+    <div id='volunteer-duplicate-error' class='hidden info-box'>
+      <h3>You’ve already volunteererd for <span class='volunteeredRoadName'>this road</span>!</h3>
+      <p>Click on another road to volunteer.</p>
+    </div>
+    <div id='volunteer-success' class='hidden info-box'>
+      <h3>You’ve successfully volunteered!</h3>
+      <p>Thanks for volunteering to find more details about <span class='volunteeredRoadName'>this road</span>. You can volunteer for more roads by clicking on them.</p>
+    </div>
+
+    <!-- Google Sheets Auth stuff -->
+    <div id="authorize-div" style="display: none">
+      <span>There’s an error with Google Spreadsheet Authorization.</span>
+      <!--Button for the user to click to initiate auth sequence -->
+      <button id="authorize-button" onclick="handleAuthClick(event)">
+        Authorize
+      </button>
+    </div>
+  </div>
+
+  <div id='map-container' class=''>
+    <div id='map'></div>
+  </div>
 </div>
+
 <script>
 mapboxgl.accessToken = 'pk.eyJ1IjoicmFzYWd5IiwiYSI6Ilk2ay1VMEEifQ.CJfn_CxDfwyN5xaVfx4jaw';
 var map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/rasagy/civxoa6aq006m2jo5w1g3pk1c',
-    zoom: 11,
-    center: [77.605200, 12.984529]
+  container: 'map',
+  style: 'mapbox://styles/rasagy/civxoa6aq006m2jo5w1g3pk1c',
+  zoom: 11,
+  center: [77.605200, 12.984529]
 }); //
 
 map.on('load', function () {
 
-    //Add road data as a tileset
-    map.addSource('cityidols-blr-lines-tileset', {
-        type: 'vector',
-        url: 'mapbox://rasagy.civxodmq3000l2sl5ejserexe-30y1t'
+  //Add road data as a tileset
+  map.addSource('cityidols-blr-lines-tileset', {
+    type: 'vector',
+    url: 'mapbox://rasagy.civxodmq3000l2sl5ejserexe-30y1t'
+  });
+
+  //Add roads from the tileset
+  map.addLayer({
+    "id": "cityidols-lines",
+    "type": "line",
+    "metadata": {},
+    "source": "cityidols-blr-lines-tileset",
+    "source-layer": "cityidols-blr-lines",
+    "filter": [
+    "==",
+    "$type",
+    "LineString"
+    ],
+    "layout": {
+      "visibility": "visible",
+      "line-cap": "round",
+      "line-join": "miter"
+    },
+    "paint": {
+      "line-width": {
+        "base": 1.5,
+        "stops": [
+          [7, 0.5],
+          [11, 1.4],
+          [20, 32]
+        ]
+      },
+      "line-color": "hsl(40, 100%, 50%)"
+    }
+  }, 'waterway-label');   //Show labels on top of the roads
+
+  //Hover interactions
+  map.on('mousemove', function(e) {
+    //Find features under the mouse
+    var features = map.queryRenderedFeatures(e.point, {
+      layers: ['cityidols-lines']
     });
 
-    //Add roads from the tileset
-    map.addLayer({
-            "id": "cityidols-lines",
-            "type": "line",
-            "metadata": {},
-            "source": "cityidols-blr-lines-tileset",
-            "source-layer": "cityidols-blr-lines",
-            "filter": [
-                "==",
-                "$type",
-                "LineString"
-            ],
-            "layout": {
-                "visibility": "visible",
-                "line-cap": "round",
-                "line-join": "miter"
-            },
-            "paint": {
-                "line-width": {
-                    "base": 1.5,
-                    "stops": [
-                        [
-                            7,
-                            0.5
-                        ],
-                        [
-                            11,
-                            1.4
-                        ],
-                        [
-                            20,
-                            32
-                        ]
-                    ]
-                },
-                "line-color": "hsl(40, 100%, 50%)"
-            }
-        }, 'waterway-label');   //Show labels on top of the roads
+    //Switch pointer to hand if on top of a road, otherwise make it default
+    map.getCanvas().style.cursor = features.length ? 'pointer' : '';
 
-    map.on('mousemove', function(e) {
-        //Find features under the mouse
-        var features = map.queryRenderedFeatures(e.point, {
-            layers: ['cityidols-lines']
-        });
+    /*Stop if mouse is not on a road
+    if (!features.length) {
+        return;
+    }
+    //*/
 
-        //Switch pointer to hand if on top of a road, otherwise make it default
-        map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+    /*Debug:
+    if(features.length) {
+        // console.log("Hovered on: "+features[0].properties.name);
+      }//End of debug*/
 
-        //Stop if mouse is not on a road
-        if (!features.length) {
-            return;
-        }
+    /*
+    //Highlight all roads with the same name (to take care of same road with multiple ways)
+    feature = features[0];
 
-        //*Debug:
-        if(features.length) {
-            console.log("Hovered on: "+features[0].properties.name);
-        }//End of debug*/
-
-        /*Highlight all roads with the same name (to take care of same road with multiple ways)
-        feature = features[0];
-
-        var sameNameRoads = map.querySourceFeatures('cityidols-lines', {
-            sourceLayer: 'cityidols-lines',
-            filter: ['in', 'name', feature.properties.name]
-        });
-        console.log(sameNameRoads);
-        //*/
-
+    var sameNameRoads = map.querySourceFeatures('cityidols-blr-lines-tileset', {
+        sourceLayer: 'cityidols-blr-lines',
+        filter: ['in', 'name', feature.properties.name]
     });
 
-    map.on('mousedown', function(e) {
-        //Find features under the mouse
-        var features = map.queryRenderedFeatures(e.point, {
-            layers: ['cityidols-lines']
-        });
+    // console.log(sameNameRoads);
+    //*/
+  });
 
-        
-        if(!features.length) {
-            //If no road was selected
-            console.log("No road selected");
-
-            //Hide form or error in case it’s shown
-            hideLayer('volunteer-error');
-            hideLayer('volunteer-form-container');
-            showLayer('info-container');
-        } else {
-            //If a road was selected
-
-            var selectedRoadName=features[0].properties.name;
-            // console.log("Road selected: "+selectedRoadName);
-            // console.log(features[0]);
-
-            if(findVolunteerCount(selectedRoadName)>=3) {
-                //Show error if there are 3 volunteers
-                showLayer('volunteer-error');
-                hideLayer('info-container');
-            } else {
-                //Show form
-                showLayer('volunteer-form-container');
-                hideLayer('info-container');
-
-                //Set value of road name in the form
-                document.getElementById("roadName").value = selectedRoadName;
-            }
-        }
+  //Click interactions
+  map.on('mousedown', function(e) {
+    //Find features under the mouse
+    var features = map.queryRenderedFeatures(e.point, {
+      layers: ['cityidols-lines']
     });
 
+    if(!features.length) {
+      //If no road was selected
+      // console.log("No road selected");
+
+      //Hide form or error in case it’s shown
+      $('.info-box').hide(0, function() {
+        $('#welcome-container').show();
+      });
+    } else {
+      //If a road was selected:
+      var selectedRoadName=features[0].properties.name;
+      showVolunteerForRoad(selectedRoadName);
+    }
+  });
+
+  $("#volunteer-form").on("submit",function() {
+    //Call function to check and save volunteer details
+    formSubmit();
+    //Prevent page from refreshing
+    return false;
+  });
 });
 
-function findVolunteerCount(rName) {
-    //Check for count from spreadsheet & return
-
-    //For now, returning 1
-    return 1;
-}
-
-function showLayer(layerName) {
-    var e = document.getElementById(layerName);
-
-    if (e.classList.contains('hidden')) {
-        e.classList.remove('hidden');
-    }
-}
-
-function hideLayer(layerName) {
-    var e = document.getElementById(layerName);
-
-    if (!e.classList.contains('hidden')) {
-        e.classList.add('hidden');
-    }
-}
-
-function toggleLayer(layerName) {
-    var e = document.getElementById(layerName);
-    var info = document.getElementById('info-container');
-    if (e.classList.contains('hidden')) {
-        e.classList.remove('hidden');
-        info.classList.add('hidden');
-    }
-    else 
-    {
-        e.classList.add('hidden');
-        info.classList.remove('hidden');
-    }
+function formSubmit() {
+  var submittedRoad = document.getElementById("roadName").value;
+  var submittedName = document.getElementById("vName").value;
+  var submittedEmail = document.getElementById("vEmail").value;
+  addRoadForVolunteer(submittedRoad,submittedName,submittedEmail);
 }
 
 </script>
 
+<!-- Script for connecting with Google Sheets start here -->
+
+<script type="text/javascript">
+// Your Client ID can be retrieved from your project in the Google
+// Developer Console, https://console.developers.google.com
+var CLIENT_ID = '998468721896-f3sgde14ggbh80i6f3apar4pu1kbdg5r.apps.googleusercontent.com';
+
+//Use this if you only want to read from the spreadsheet
+//var SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
+var SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
+
+/**
+ * Check if current user has authorized this application.
+ */
+function checkAuth() {
+  gapi.auth.authorize(
+  {
+    'client_id': CLIENT_ID,
+    'scope': SCOPES.join(' '),
+    'immediate': true
+  }, handleAuthResult);
+}
+
+/**
+ * Handle response from authorization server.
+ *
+ * @param {Object} authResult Authorization result.
+ */
+function handleAuthResult(authResult) {
+  var authorizeDiv = document.getElementById('authorize-div');
+  if (authResult && !authResult.error) {
+    // Hide auth UI, then load client library.
+    authorizeDiv.style.display = 'none';
+    loadSheetsApi();
+  } else {
+    // Show auth UI, allowing the user to initiate authorization by
+    // clicking authorize button.
+    authorizeDiv.style.display = 'inline';
+  }
+}
+
+/**
+ * Initiate auth flow in response to user clicking authorize button.
+ *
+ * @param {Event} event Button click event.
+ */
+function handleAuthClick(event) {
+  gapi.auth.authorize(
+    {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
+    handleAuthResult);
+  return false;
+}
+
+/**
+ * Load Sheets API client library.
+ */
+function loadSheetsApi() {
+  var discoveryUrl = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
+  gapi.client.load(discoveryUrl); //append this with .then(listVolunteers).then(listRoads); for debugging the spreadsheet data
+}
+
+/**
+ * Print the names from the Volunteer sheet
+ */
+function listVolunteers() {
+  gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+    range: 'Sheet1!A2:C',
+  }).then(function(response) {
+    var range = response.result;
+    // console.log(response);
+    if (range.values.length > 0) {
+      console.log('Volunteer list for debugging:');
+      for (i = 0; i < range.values.length; i++) {
+        var row = range.values[i];
+        console.log(row[0] + ' volunteered for: ' + row[2]);
+      }
+    } else {
+      console.log('No data found.');
+    }
+  }, function(response) {
+    console.log('Error: ' + response.result.error.message);
+  });
+}
+
+/**
+ * Print the names from the Road data sheet
+ */
+
+function listRoads() {
+  gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: '1Ix-r3v-Dw5i6eGnakTRrMjuPHL_GsJxEMb4YtHoTDvo',
+    range: 'Sheet1!A2:S',
+  }).then(function(response) {
+    var range = response.result;
+    // console.log(response);
+    if (range.values.length > 0) {
+      /*
+      for (i = 0; i < range.values.length; i++) {
+        var row = range.values[i];
+        console.log(row[0] + ' volunteered for:' + row[2]);
+      }
+      //*/
+    } else {
+      console.log('No data found.');
+    }
+  }, function(response) {
+    console.log('Error: ' + response.result.error.message);
+  });
+}
+
+
+function showVolunteerForRoad(rName) {
+  var roadVolunteerCount = 0;
+
+  gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+    range: 'Sheet1!A2:C',
+  }).then(function(response) {
+    var range = response.result;
+    // console.log(response);
+    //Todo: fix code for empty spreadsheet
+    if (range.values.length > 0) {
+      for (i = 0; i < range.values.length; i++) {
+        var row = range.values[i];
+        if(row[2]==rName) {
+          roadVolunteerCount++;
+            // console.log(row[0]+" has volunteered for "+rName);
+            if (roadVolunteerCount==3){
+              console.log("Already have 3 volunteers for "+rName);
+              //Show error
+              $('.info-box').hide();
+              $('#volunteer-3-error').show();
+              return;
+            }
+          }
+        }
+      //Finished counting, show form
+      if(roadVolunteerCount==0) {
+        console.log("No volunteers for "+rName);
+              //Show form
+              $('.info-box').hide();
+              $('#volunteer-form-container').show();
+
+              //Set value of road name in the form
+              document.getElementById("roadName").value = rName;
+            } else if(roadVolunteerCount<3) {
+              console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName);
+              //Show form
+              $('.info-box').hide();
+              $('#volunteer-form-container').show();
+
+              //Set value of road name in the form
+              document.getElementById("roadName").value = rName;
+            }
+          } else {
+            console.log('No data found.');
+          }
+        }, function(response) {
+          console.log('Error: ' + response.result.error.message);
+        });
+}
+
+function addRoadForVolunteer(rName, vName, vEmail) {
+  //Disable button so you can’t click on it any more
+  $("#submit-button").prop("disabled", true);
+
+  //Todo: check for invalid values, and empty form
+
+  var duplicateFlag = false;
+  var roadVolunteerCount = 0;
+
+  gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+    range: 'Sheet1!A2:C',
+  }).then(function(response) {
+    var range = response.result;
+    // console.log(response);
+
+    //Show error if volunteer has already volunteered for that road or if the road already has 3 volunteers
+    if (range.values.length > 0) {
+      for (i = 0; i < range.values.length; i++) {
+        var row = range.values[i];
+        if(row[2]==rName) {
+          roadVolunteerCount++;
+          if(row[0]==vName || row[1]==vEmail)
+          {
+            //Checking for duplicate entries (Name or email)
+            duplicateFlag = true;
+            console.log("Already volunteered for "+rName);
+            //Show error
+            $('.info-box').hide(0, function() {
+              $('#volunteer-duplicate-error').show();
+            });            
+            return;
+          } else if(roadVolunteerCount>=3) {
+            //Checking for volunteer count
+            console.log("Already have 3 volunteers for "+rName);
+            //Show error
+            $('.info-box').hide(0, function() {
+              $('#volunteer-3-error').show();
+            });
+            return;
+          }
+        }
+      }
+      //Loop complete
+      
+      if(roadVolunteerCount<3 && !duplicateFlag) {
+        //Otherwise, append row in the volunteer sheet
+        gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+          range: 'Sheet1!A2:C',
+          valueInputOption: 'RAW',
+          "values": [
+            [vName, vEmail, rName],
+          ],
+        }).then(function(response) {
+          //Show confirmation, and set the form submit button to enabled
+          $('.info-box').hide(0, function(){
+            $('#volunteer-success').show(0, function() {
+              $("#submit-button").prop("disabled", false);
+            });
+          });
+          // console.log(response);
+        }, function(response) {
+          console.log('Error: ' + response.result.error.message);
+        });
+      } else {
+        //In case of errors, set Submit button to enabled
+        $("#submit-button").prop("disabled", false);
+      }
+    } else {
+      console.log('No data found.');
+    }
+  }, function(response) {
+    console.log('Error: ' + response.result.error.message);
+  });
+}
+</script>
+<script src="https://apis.google.com/js/client.js?onload=checkAuth">
+</script>
 </body>
 </html>
