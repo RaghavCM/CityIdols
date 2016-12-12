@@ -67,13 +67,6 @@
             Authorize
           </button>
         </div>
-
-        <!-- Google Sheets debug stuff -->
-        <!--
-        <p>
-        <hr>
-        <pre id="output"></pre>
-        -->
     </div>
 
     <div id='map-container' class=''>
@@ -184,25 +177,10 @@ map.on('load', function () {
             //Hide form or error in case it’s shown
             $('.info-box').hide();
             $('#welcome-container').show();
-            // hideLayer('volunteer-error');
-            // hideLayer('volunteer-form-container');
-            // showLayer('welcome-container');
         } else {
             //If a road was selected
-
             var selectedRoadName=features[0].properties.name;
-            // console.log("Road selected: "+selectedRoadName);
-            // console.log(features[0]);
-
             showVolunteerForRoad(selectedRoadName);
-
-            /*
-            if(findVolunteerCount(selectedRoadName)>=3) {
-                //Show error if there are 3 volunteers
-
-            } else {
-                
-            }//*/
         }
     });
 
@@ -215,339 +193,243 @@ function formSubmit(event) {
     addRoadForVolunteer(submittedRoad,submittedName,submittedEmail);
 }
 
-function findVolunteerCount(rName) {
-    //Check for count from spreadsheet & return
-
-    //For now, returning 1
-    return 1;
-}
-/*
-//Switched to using jQuery instead of manually writing these.
-function showLayer(layerName) {
-    var e = document.getElementById(layerName);
-
-    if (e.classList.contains('hidden')) {
-        e.classList.remove('hidden');
-    }
-}
-
-function hideLayer(layerName) {
-    var e = document.getElementById(layerName);
-
-    if (!e.classList.contains('hidden')) {
-        e.classList.add('hidden');
-    }
-}
-
-function hideInfoBoxes() {
-    //Hide all div with .info-box instead of manually hiding each layer
-    $('.info-box').hide();
-
-}
-
-function toggleLayer(layerName) {
-    var e = document.getElementById(layerName);
-    var info = document.getElementById('welcome-container');
-    if (e.classList.contains('hidden')) {
-        e.classList.remove('hidden');
-        info.classList.add('hidden');
-    }
-    else 
-    {
-        e.classList.add('hidden');
-        info.classList.remove('hidden');
-    }
-}
-//*/
-
 </script>
 
 <!-- Script for connecting with Google Sheets start here -->
 
 <script type="text/javascript">
-      // Your Client ID can be retrieved from your project in the Google
-      // Developer Console, https://console.developers.google.com
-      var CLIENT_ID = '998468721896-f3sgde14ggbh80i6f3apar4pu1kbdg5r.apps.googleusercontent.com';
+  // Your Client ID can be retrieved from your project in the Google
+  // Developer Console, https://console.developers.google.com
+  var CLIENT_ID = '998468721896-f3sgde14ggbh80i6f3apar4pu1kbdg5r.apps.googleusercontent.com';
 
-      // var SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"];
-      var SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
+  //Use this if you only want to read from the spreadsheet
+  // var SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]; 
+  var SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 
-      /**
-       * Check if current user has authorized this application.
-       */
-      function checkAuth() {
-        gapi.auth.authorize(
-          {
-            'client_id': CLIENT_ID,
-            'scope': SCOPES.join(' '),
-            'immediate': true
-          }, handleAuthResult);
-      }
+  /**
+   * Check if current user has authorized this application.
+   */
+  function checkAuth() {
+    gapi.auth.authorize(
+      {
+        'client_id': CLIENT_ID,
+        'scope': SCOPES.join(' '),
+        'immediate': true
+      }, handleAuthResult);
+  }
 
-      /**
-       * Handle response from authorization server.
-       *
-       * @param {Object} authResult Authorization result.
-       */
-      function handleAuthResult(authResult) {
-        var authorizeDiv = document.getElementById('authorize-div');
-        if (authResult && !authResult.error) {
-          // Hide auth UI, then load client library.
-          authorizeDiv.style.display = 'none';
-          loadSheetsApi();
-        } else {
-          // Show auth UI, allowing the user to initiate authorization by
-          // clicking authorize button.
-          authorizeDiv.style.display = 'inline';
+  /**
+   * Handle response from authorization server.
+   *
+   * @param {Object} authResult Authorization result.
+   */
+  function handleAuthResult(authResult) {
+    var authorizeDiv = document.getElementById('authorize-div');
+    if (authResult && !authResult.error) {
+      // Hide auth UI, then load client library.
+      authorizeDiv.style.display = 'none';
+      loadSheetsApi();
+    } else {
+      // Show auth UI, allowing the user to initiate authorization by
+      // clicking authorize button.
+      authorizeDiv.style.display = 'inline';
+    }
+  }
+
+  /**
+   * Initiate auth flow in response to user clicking authorize button.
+   *
+   * @param {Event} event Button click event.
+   */
+  function handleAuthClick(event) {
+    gapi.auth.authorize(
+      {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
+      handleAuthResult);
+    return false;
+  }
+
+  /**
+   * Load Sheets API client library.
+   */
+  function loadSheetsApi() {
+    var discoveryUrl = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
+    gapi.client.load(discoveryUrl); //append this with .then(listVolunteers).then(listRoads); for debugging the spreadsheet data
+  }
+
+  /**
+   * Print the names from the Volunteer sheet
+   */
+  function listVolunteers() {
+    gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+      range: 'Sheet1!A2:C',
+    }).then(function(response) {
+      var range = response.result;
+      // console.log(response);
+      if (range.values.length > 0) {
+        console.log('Volunteer list for debugging:');
+        for (i = 0; i < range.values.length; i++) {
+          var row = range.values[i];
+          console.log(row[0] + ' volunteered for: ' + row[2]);
         }
+      } else {
+        console.log('No data found.');
       }
+    }, function(response) {
+      console.log('Error: ' + response.result.error.message);
+    });
+  }
 
-      /**
-       * Initiate auth flow in response to user clicking authorize button.
-       *
-       * @param {Event} event Button click event.
-       */
-      function handleAuthClick(event) {
-        gapi.auth.authorize(
-          {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
-          handleAuthResult);
-        return false;
+  /**
+   * Print the names from the Road data sheet
+   */
+
+  function listRoads() {
+    gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: '1Ix-r3v-Dw5i6eGnakTRrMjuPHL_GsJxEMb4YtHoTDvo',
+      range: 'Sheet1!A2:S',
+    }).then(function(response) {
+      var range = response.result;
+      // console.log(response);
+      if (range.values.length > 0) {
+        /*
+        for (i = 0; i < range.values.length; i++) {
+          var row = range.values[i];
+          console.log(row[0] + ' volunteered for:' + row[2]);
+        }
+        //*/
+      } else {
+        console.log('No data found.');
       }
+    }, function(response) {
+      console.log('Error: ' + response.result.error.message);
+    });
+  }
 
-      /**
-       * Load Sheets API client library.
-       */
-      function loadSheetsApi() {
-        var discoveryUrl =
-            'https://sheets.googleapis.com/$discovery/rest?version=v4';
-        gapi.client.load(discoveryUrl).then(listVolunteers).then(listRoads);
-      }
+  function addRoadForVolunteer(rName, vName, vEmail) {
+    //Disable button so you can’t click on it any more
+    $("#submit-button").prop("disabled", true);
 
-      /**
-       * Print the names from the Volunteer sheet
-       */
-      function listVolunteers() {
-        gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-          range: 'Sheet1!A2:C',
-        }).then(function(response) {
-          var range = response.result;
-          // console.log(response);
-          if (range.values.length > 0) {
-            appendPre('Volunteer list for debugging:');
-            for (i = 0; i < range.values.length; i++) {
-              var row = range.values[i];
-              // Print columns A and E, which correspond to indices 0 and 4.
-              appendPre(row[0] + ' volunteered for: ' + row[2]);
+    //Todo: check for valid values, and empty form
+
+    var duplicateFlag = false;
+    var roadVolunteerCount = 0;
+
+    gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+      range: 'Sheet1!A2:C',
+    }).then(function(response) {
+      var range = response.result;
+      // console.log(response);
+    
+      //Show error if volunteer has already volunteered for that road or if the road already has 3 volunteers
+      if (range.values.length > 0) {
+        for (i = 0; i < range.values.length; i++) {
+          var row = range.values[i];
+          if(row[2]==rName) {
+            roadVolunteerCount++;
+            if(row[0]==vName || row[1]==vEmail)
+            {
+                //Checking for duplicate entries (Name or email)
+                duplicateFlag = true;
+                console.log("Already volunteered for "+rName);
+                //Show error
+                $('.info-box').hide();
+                $('#volunteer-duplicate-error').show();
+                return;
+            } else if(roadVolunteerCount>=3) {
+                //Checking for volunteer count
+                console.log("Already have 3 volunteers for "+rName);
+                //Show error
+                $('.info-box').hide();
+                $('#volunteer-3-error').show();
+                return;
             }
-          } else {
-            appendPre('No data found.');
           }
-        }, function(response) {
-          appendPre('Error: ' + response.result.error.message);
-        });
-      }
-
-      /**
-       * Print the names from the Road data sheet
-       */
-
-      function listRoads() {
-        gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: '1Ix-r3v-Dw5i6eGnakTRrMjuPHL_GsJxEMb4YtHoTDvo',
-          range: 'Sheet1!A2:S',
-        }).then(function(response) {
-          var range = response.result;
-          // console.log(response);
-          if (range.values.length > 0) {
-            // console.log('Road list:');
-            // console.log(range.values);
-            /*
-            for (i = 0; i < range.values.length; i++) {
-              var row = range.values[i];
-              // Print columns A and E, which correspond to indices 0 and 4.
-              appendPre(row[0] + ' volunteered for:' + row[2]);
-            }
-            //*/
-          } else {
-            appendPre('No data found.');
-          }
-        }, function(response) {
-          appendPre('Error: ' + response.result.error.message);
-        });
-      }
-
-      /*
-      function checkForVolunteer(vName) {
-        //Check sheet if volunteer exists
-
-        //If yes, return row number
-        //If not, return -1
-
-        gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-          range: 'Sheet1!A2:C',
-        }).then(function(response) {
-          var range = response.result;
-          // console.log(response);
-          if (range.values.length > 0) {
-            // appendPre('Volunteer list for debugging:');
-            for (i = 0; i < range.values.length; i++) {
-              var row = range.values[i];
-              if(row[0]==vName) {
-              console.log(row);
-              return i;
-              }
-            }
-          } else {
-            console.log('No data found.');
-          }
-        }, function(response) {
-          console.log('Error: ' + response.result.error.message);
-        });
-
-      } //*/
-
-      function addRoadForVolunteer(rName, vName, vEmail) {
-        //Disable button so you can’t click on it any more
-        $("#submit-button").prop("disabled", true);
-
-        //Show error if volunteer has already volunteered for that road or if the road already has 3 volunteers
-
-        var duplicateFlag = false;
-        var roadVolunteerCount = 0;
-
-        gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-          range: 'Sheet1!A2:C',
-        }).then(function(response) {
-          var range = response.result;
-          console.log(response);
-
-          if (range.values.length > 0) {
-            for (i = 0; i < range.values.length; i++) {
-            var row = range.values[i];
-              if(row[2]==rName) {
-                roadVolunteerCount++;
-                if(row[0]==vName || row[1]==vEmail)
-                {
-                    //Checking for duplicate entries (Name or email)
-                    duplicateFlag = true;
-                    console.log("Already volunteered for "+rName);
-                    //Show error
-                    $('.info-box').hide();
-                    $('#volunteer-duplicate-error').show();
-                    return;
-                } else if(roadVolunteerCount>=3) {
-                    //Checking for volunteer count
-                    console.log("Already have 3 volunteers for "+rName);
-                    //Show error
-                    $('.info-box').hide();
-                    $('#volunteer-3-error').show();
-                    return;
-                }
-              }
-            }
-            //Otherwise, append row in the volunteer sheet
-            if(roadVolunteerCount<3 && !duplicateFlag) {
-                gapi.client.sheets.spreadsheets.values.append({
-                  spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-                  range: 'Sheet1!A2:C',
-                  valueInputOption: 'RAW',
-                  "values": [
-                    [vName, vEmail, rName],
-                  ],
-                }).then(function(response) {
-                    $('.info-box').hide(0, function(){
-                        $('#volunteer-success').show(0, function() {
-                            $("#submit-button").prop("disabled", false);
-                        }); 
-                    });
-                    console.log(response);
-                }, function(response) {
-                  console.log('Error: ' + response.result.error.message);
+        }
+        //Otherwise, append row in the volunteer sheet
+        if(roadVolunteerCount<3 && !duplicateFlag) {
+            gapi.client.sheets.spreadsheets.values.append({
+              spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+              range: 'Sheet1!A2:C',
+              valueInputOption: 'RAW',
+              "values": [
+                [vName, vEmail, rName],
+              ],
+            }).then(function(response) {
+                //Show confirmation, and set the form submit button to enabled
+                $('.info-box').hide(0, function(){
+                    $('#volunteer-success').show(0, function() {
+                        $("#submit-button").prop("disabled", false);
+                    }); 
                 });
-            } else {
-                //Set Submit button to enabled
-                $("#submit-button").prop("disabled", false);
-            }
+                console.log(response);
+            }, function(response) {
+              console.log('Error: ' + response.result.error.message);
+            });
+        } else {
+            //In case of errors, set Submit button to enabled
+            $("#submit-button").prop("disabled", false);
+        }
 
-          } else {
-            appendPre('No data found.');
+      } else {
+        console.log('No data found.');
+      }
+    }, function(response) {
+      console.log('Error: ' + response.result.error.message);
+    });        
+  }
+
+  function showVolunteerForRoad(rName) {
+    var roadVolunteerCount = 0;
+
+    gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+      range: 'Sheet1!A2:C',
+    }).then(function(response) {
+      var range = response.result;
+      // console.log(response);
+      //Todo: fix code for empty spreadsheet
+      if (range.values.length > 0) {
+        for (i = 0; i < range.values.length; i++) {
+          var row = range.values[i];
+          if(row[2]==rName) {
+              roadVolunteerCount++;
+              // console.log(row[0]+" has volunteered for "+rName);
+              if (roadVolunteerCount==3){
+                console.log("Already have 3 volunteers for "+rName);
+                //Show error
+                $('.info-box').hide();
+                $('#volunteer-3-error').show();
+                return;
+              }                
           }
-        }, function(response) {
-          appendPre('Error: ' + response.result.error.message);
-        });        
+        }
+        //Finished counting, show form 
+        if(roadVolunteerCount==0) {
+                console.log("No volunteers for "+rName);
+                //Show form
+                $('.info-box').hide();
+                $('#volunteer-form-container').show();
+
+                //Set value of road name in the form
+                document.getElementById("roadName").value = rName;
+        } else if(roadVolunteerCount<3) {
+                console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName);
+                //Show form
+                $('.info-box').hide();
+                $('#volunteer-form-container').show();
+
+                //Set value of road name in the form
+                document.getElementById("roadName").value = rName;
+        }
+      } else {
+        console.log('No data found.');
       }
-
-      function showVolunteerForRoad(rName) {
-        //If vcount>0, show volunteers for that road
-        //If vcount=0, no volunteers
-        var roadVolunteerCount = 0;
-
-        gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-          range: 'Sheet1!A2:C',
-        }).then(function(response) {
-          var range = response.result;
-          // console.log(response);
-          if (range.values.length > 0) {
-            // console.log('Road list:');
-            // console.log(range.values);
-            //*
-            for (i = 0; i < range.values.length; i++) {
-              var row = range.values[i];
-              if(row[2]==rName) {
-                  roadVolunteerCount++;
-                  console.log(row[0]+" has volunteered for "+rName);
-                  if (roadVolunteerCount==3){
-                    console.log("Already have 3 volunteers for "+rName);
-                    //Show error
-                    $('.info-box').hide();
-                    $('#volunteer-3-error').show();
-                    return;
-                  }                
-              }
-            }
-
-            //Finished counting through the list
-            if(roadVolunteerCount==0) {
-                    console.log("No volunteers for "+rName);
-                    //Show form
-                    $('.info-box').hide();
-                    $('#volunteer-form-container').show();
-
-                    //Set value of road name in the form
-                    document.getElementById("roadName").value = rName;
-            } else {
-                    console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName+": "+row[2]);
-                    //Show form
-                    $('.info-box').hide();
-                    $('#volunteer-form-container').show();
-
-                    //Set value of road name in the form
-                    document.getElementById("roadName").value = rName;
-            }
-            //*/
-          } else {
-            console.log('No data found.');
-          }
-        }, function(response) {
-          console.log('Error: ' + response.result.error.message);
-        });
-      }
-
-      /**
-       * Append a pre element to the body containing the given message
-       * as its text node.
-       *
-       * @param {string} message Text to be placed in pre element.
-       */
-      function appendPre(message) {
-        // var pre = document.getElementById('output');
-        // var textContent = document.createTextNode(message + '\n');
-        console.log(message);
-      }
+    }, function(response) {
+      console.log('Error: ' + response.result.error.message);
+    });
+  }
 </script>
 <script src="https://apis.google.com/js/client.js?onload=checkAuth">
 </script>
