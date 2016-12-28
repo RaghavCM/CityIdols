@@ -4,10 +4,11 @@
   <meta charset='utf-8' />
   <title>City Idols Volunteer Page</title>
   <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
-  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.js'></script>
+  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.29.0/mapbox-gl.js'></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 
-  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.28.0/mapbox-gl.css' rel='stylesheet' />
+  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.29.0/mapbox-gl.css' rel='stylesheet' />
+  <script src='https://api.mapbox.com/mapbox.js/plugins/turf/v2.0.2/turf.min.js'></script>
   <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
   <style>
     body { margin:0; padding:0; }
@@ -30,7 +31,7 @@
     <br />
     <div id='search-box' class='input-pill col12 clearfix'>
       <form id='search-form'>        
-        <input id="roadName" type="text" list="roads" placeholder="Enter road name" class='col10' required autofocus />
+        <input id="roadName" type="text" list="roads" placeholder="Enter road name" class='col9' required autofocus />
         <button id='search-button' type='submit' class='button icon search col1'></button>
       </form>      
     </div>
@@ -90,13 +91,17 @@ mapboxgl.accessToken = 'pk.eyJ1IjoicmFzYWd5IiwiYSI6Ilk2ay1VMEEifQ.CJfn_CxDfwyN5x
 var map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/rasagy/civxoa6aq006m2jo5w1g3pk1c',
-  zoom: 11,
+  zoom: 10,
   center: [77.605200, 12.984529]
 }); //
 
 map.on('load', function () {
 
+  map.setMaxZoom(12);
+  map.setMinZoom(10);
+
   //Set override on the submit buttons
+
   $("#search-form").on("submit",function() {
     //Call function to show the road
     var selectedRoadName=document.getElementById("roadName").value;
@@ -110,7 +115,7 @@ map.on('load', function () {
     formSubmit();
     //Prevent page from refreshing
     return false;
-  });
+  });  
 
   //Add road data as a tileset
   map.addSource('cityidols-blr-lines-tileset', {
@@ -148,6 +153,35 @@ map.on('load', function () {
     }
   }, 'waterway-label');   //Show labels on top of the roads
 
+
+  //Layer for highlighting roads
+  map.addLayer({
+    "id": "cityidols-lines-highlighted",
+    "type": "line",
+    "metadata": {},
+    "source": "cityidols-blr-lines-tileset",
+    "source-layer": "cityidols-blr-lines",
+    "filter":  ['in', 'name', ''],
+    "layout": {
+      "visibility": "visible",
+      "line-cap": "round",
+      "line-join": "miter"
+    },
+    "paint": {
+      "line-width": {
+        "base": 1.5,
+        "stops": [
+          [7, 1],
+          [11, 2.8],
+          [20, 64]
+        ]
+      },
+      "line-color": "HSLA(205, 54%, 48%, 0.9)"
+    }
+  });   //Show labels on top of the roads
+
+  showBangalore();
+
   //Hover interactions
   map.on('mousemove', function(e) {
     //Find features under the mouse
@@ -158,28 +192,10 @@ map.on('load', function () {
     //Switch pointer to hand if on top of a road, otherwise make it default
     map.getCanvas().style.cursor = features.length ? 'pointer' : '';
 
-    /*Stop if mouse is not on a road
-    if (!features.length) {
-        return;
-    }
-    //*/
-
     /*Debug:
     if(features.length) {
         // console.log("Hovered on: "+features[0].properties.name);
       }//End of debug*/
-
-    /*
-    //Highlight all roads with the same name (to take care of same road with multiple ways)
-    feature = features[0];
-
-    var sameNameRoads = map.querySourceFeatures('cityidols-blr-lines-tileset', {
-        sourceLayer: 'cityidols-blr-lines',
-        filter: ['==', 'name', feature.properties.name]
-    });
-
-    // console.log(sameNameRoads);
-    //*/
   });
 
   //Click interactions
@@ -191,9 +207,9 @@ map.on('load', function () {
 
     if(!features.length) {
       //If no road was selected
-      // console.log("No road selected");
-
-      //Hide form or error in case it’s shown
+      // console.log("No road selected");      
+      showBangalore();
+      //Hide form or error in case it’s visible
       $('.info-box').hide(0, function() {
         $('#welcome-container').show();
       });
@@ -210,6 +226,18 @@ function formSubmit() {
   var submittedName = document.getElementById("vName").value;
   var submittedEmail = document.getElementById("vEmail").value;
   addRoadForVolunteer(submittedRoad,submittedName,submittedEmail);
+}
+
+function showBangalore() {
+  //Hide any selected roads
+  map.setFilter('cityidols-lines-highlighted', ['in', 'name', '']);
+  
+  //Fly!
+  map.flyTo({
+      zoom: 10.5,
+      center: [77.605200, 12.984529],
+      speed: 2
+  });
 }
 
 </script>
@@ -327,71 +355,93 @@ function listRoads() {
   });
 }
 
-
 function showVolunteerForRoad(rName) {
   var roadVolunteerCount = 0;
+    
+  //Find all roads with the same name (to take care of same road with multiple ways)
 
-  gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
-    range: 'Sheet1!A2:C',
-  }).then(function(response) {
-    var range = response.result;
-    //console.log(response);
-    //Todo: fix code for empty spreadsheet
-    //if(!range.values) instead of below
-    //Or range.values = range.values || []; -> Then you don’t need the if statement
-    if (range.values.length > 0) {
-      for (i = 0; i < range.values.length; i++) {
-        var row = range.values[i];
-        if(row[2]==rName) {
-          console.log(row[0]+" has volunteered for "+row[2]);
-          roadVolunteerCount++;
-            // console.log(row[0]+" has volunteered for "+rName);
-            //Move this part below after loop
-            if (roadVolunteerCount==3){
-              console.log("Already have 3 volunteers for "+rName);
-              //Show error
-              $('.info-box').hide();
-              $('#volunteer-3-error').show();
-              return;
-            }
+  var sameNameRoads = map.querySourceFeatures('cityidols-blr-lines-tileset', {
+      sourceLayer: 'cityidols-blr-lines',
+      filter: ['in', 'name', rName]
+  });
+
+  if(sameNameRoads.length>0) {
+
+    //Highlight road
+    map.setFilter('cityidols-lines-highlighted', ['in', 'name', rName]);
+    // console.log(sameNameRoads);
+
+        //* Fly to that road
+        var fc=turf.featurecollection(sameNameRoads);
+        var extent = turf.extent(fc);
+        map.fitBounds(extent);
+        //*/
+
+    //Check volunteers for that road
+
+    gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: '1R96Le3HqybbN67tN2hTn74FD_Atdn13__h_8Aa3b7OE',
+      range: 'Sheet1!A2:C',
+    }).then(function(response) {
+      var range = response.result;
+      //console.log(response);
+      //Todo: fix code for empty spreadsheet
+      //if(!range.values) instead of below
+      //Or range.values = range.values || []; -> Then you don’t need the if statement
+      if (range.values.length > 0) {
+        for (i = 0; i < range.values.length; i++) {
+          var row = range.values[i];
+          if(row[2]==rName) {
+            console.log(row[0]+" has volunteered for "+row[2]);
+            roadVolunteerCount++;
           }
         }
-      //Finished counting, show form
-      if(roadVolunteerCount==0) {
-        // console.log("No volunteers for "+rName);
-        //Show count of volunteers
-        document.getElementById("volunteer-count").innerHTML="no volunteers";
 
-        //Set value of road name in the form
-        document.getElementById("roadName").value = rName;
+        //Finished counting, show form
+        if (roadVolunteerCount>=3){
+          console.log("Already have 3 volunteers for "+rName);
 
-        //Show form
-        $('.info-box').hide();
-        $('#volunteer-form-container').show();
-      } else if(roadVolunteerCount<3) {
-        // console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName);
+          //Set value of road name in the form
+          document.getElementById("roadName").value = rName;
 
-        //Show count of volunteers
-        if(roadVolunteerCount==1) {
-          document.getElementById("volunteer-count").innerHTML="1 volunteer";
-        } else {
-          document.getElementById("volunteer-count").innerHTML=roadVolunteerCount+" volunteers";
+          //Show error
+          $('.info-box').hide();
+          $('#volunteer-3-error').show();
+          return;
+        } else if(roadVolunteerCount<3) {
+          //Show count of volunteers
+          // console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName);
+
+          if(roadVolunteerCount==0) {          
+          document.getElementById("volunteer-count").innerHTML="no volunteers";
+          } else if(roadVolunteerCount==1) {
+            document.getElementById("volunteer-count").innerHTML="1 volunteer";
+          } else {
+            document.getElementById("volunteer-count").innerHTML=roadVolunteerCount+" volunteers";
+          }
+
+          //Set value of road name in the form
+          document.getElementById("roadName").value = rName;
+          
+          //Show form
+          $('.info-box').hide();
+          $('#volunteer-form-container').show();
         }
-
-        //Set value of road name in the form
-        document.getElementById("roadName").value = rName;
-        
-        //Show form
-        $('.info-box').hide();
-        $('#volunteer-form-container').show();
+      } else {
+        console.log('No data found.');
       }
-    } else {
-      console.log('No data found.');
-    }
-  }, function(response) {
-    console.log('Error: ' + response.result.error.message);
-  });
+    }, function(response) {
+      console.log('Error: ' + response.result.error.message);
+    });
+  } else {
+    console.log("No such road found");    
+    showBangalore();
+
+    //Hide form or error in case it’s visible
+    $('.info-box').hide(0, function() {
+      $('#welcome-container').show();
+    });
+  }
 }
 
 function addRoadForVolunteer(rName, vName, vEmail) {
