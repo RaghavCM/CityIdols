@@ -11,7 +11,7 @@
   <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
   <style>
     body { margin:0; padding:0; }
-    #details {width: 25%; float: left; padding: 1em;}
+    #details {width: 22%; float: left; margin: 1%;}
     #map-container {width:75%; float: left;}
     #map { position:absolute; top:0; bottom:0; width: 75%;}
     input[type=text]:disabled {background: #eee; border-color: #ddd;}
@@ -22,35 +22,44 @@
 <div class='col12 clearfix'>
   <div id='details' class=''>
     <h2>Volunteer for CityIdols!</h2>
-    <div id='welcome-container' class='info-box'>      
-      <p>The <a href='www.cityidols.org'>City Idols Project</a> is an initiative to research, collate and spread information about people after whom places such as roads, parks and circles are named after.<br /></p>
+    <div id='welcome-container' class='info-box'>
+      <p>The <a href='www.cityidols.org'>City Idols Project</a> is an initiative to research, collate and spread information about people after whom places such as roads, parks and circles are named after.</p>
       <p>To join the project, click on a <span style='display:inline-block; background: #FFAA00; padding: 1px 5px;' class='round'>highlighted</span> road to volunteer for finding information about it.</p>
+      <p>You can also search for a particular road:</p>
     </div>
+    <br />
+    <div id='search-box' class='input-pill col12 clearfix'>
+      <form id='search-form'>        
+        <input id="roadName" type="text" list="roads" placeholder="Enter road name" class='col10' required autofocus />
+        <button id='search-button' type='submit' class='button icon search col1'></button>
+      </form>      
+    </div>
+    <p></p>
     <div id='volunteer-form-container' class='hidden info-box'>
-      <p>Fill in the information below to start researching on the history of this road:</p>
+      <p>We have <span id='volunteer-count'>no volunteers</span> for this road. To volunteer, enter your details:</p>
       <form id='volunteer-form'>
-        <fieldset>
+        <!--<fieldset>
           <label>Volunteering for:</label>
           <input id='roadName' type='text' value='' class='stretch fill-grey' title='You can’t edit the road name' disabled required/>
-        </fieldset>
+        </fieldset>-->
         <fieldset>
-          <label>My name:</label>
+          <label for='vName'>My name:</label>
           <input id='vName' type='text' value='' class='stretch' required />
         </fieldset>
         <fieldset>
-          <label>My email:</label>
+          <label for='vEmail'>My email:</label>
           <input id='vEmail' type='email' value='' class='stretch' required />
         </fieldset>
-        <button id='submit-button' type='submit' class='button' onclick='/*formSubmit(); return false;*/'>I volunteer for this road</button>
+        <button id='volunteer-button' type='submit' class='button'>I volunteer for this road</button>
       </form>
     </div>
     <div id='volunteer-3-error' class='hidden info-box'>
       <h3>Sorry, we already have 3 volunteers for <span class='volunteeredRoadName'>this road</span>!</h3>
-      <p>Click on another road to volunteer.</p>
+      <p>Choose another road to volunteer.</p>
     </div>
     <div id='volunteer-duplicate-error' class='hidden info-box'>
       <h3>You’ve already volunteererd for <span class='volunteeredRoadName'>this road</span>!</h3>
-      <p>Click on another road to volunteer.</p>
+      <p>Choose another road to volunteer.</p>
     </div>
     <div id='volunteer-success' class='hidden info-box'>
       <h3>You’ve successfully volunteered!</h3>
@@ -86,6 +95,22 @@ var map = new mapboxgl.Map({
 }); //
 
 map.on('load', function () {
+
+  //Set override on the submit buttons
+  $("#search-form").on("submit",function() {
+    //Call function to show the road
+    var selectedRoadName=document.getElementById("roadName").value;
+    showVolunteerForRoad(selectedRoadName);
+    //Prevent page from refreshing
+    return false;
+  });
+
+  $("#volunteer-form").on("submit",function() {
+    //Call function to check and save volunteer details
+    formSubmit();
+    //Prevent page from refreshing
+    return false;
+  });
 
   //Add road data as a tileset
   map.addSource('cityidols-blr-lines-tileset', {
@@ -150,7 +175,7 @@ map.on('load', function () {
 
     var sameNameRoads = map.querySourceFeatures('cityidols-blr-lines-tileset', {
         sourceLayer: 'cityidols-blr-lines',
-        filter: ['in', 'name', feature.properties.name]
+        filter: ['==', 'name', feature.properties.name]
     });
 
     // console.log(sameNameRoads);
@@ -177,13 +202,6 @@ map.on('load', function () {
       var selectedRoadName=features[0].properties.name;
       showVolunteerForRoad(selectedRoadName);
     }
-  });
-
-  $("#volunteer-form").on("submit",function() {
-    //Call function to check and save volunteer details
-    formSubmit();
-    //Prevent page from refreshing
-    return false;
   });
 });
 
@@ -318,7 +336,7 @@ function showVolunteerForRoad(rName) {
     range: 'Sheet1!A2:C',
   }).then(function(response) {
     var range = response.result;
-    // console.log(response);
+    //console.log(response);
     //Todo: fix code for empty spreadsheet
     //if(!range.values) instead of below
     //Or range.values = range.values || []; -> Then you don’t need the if statement
@@ -326,6 +344,7 @@ function showVolunteerForRoad(rName) {
       for (i = 0; i < range.values.length; i++) {
         var row = range.values[i];
         if(row[2]==rName) {
+          console.log(row[0]+" has volunteered for "+row[2]);
           roadVolunteerCount++;
             // console.log(row[0]+" has volunteered for "+rName);
             //Move this part below after loop
@@ -340,28 +359,39 @@ function showVolunteerForRoad(rName) {
         }
       //Finished counting, show form
       if(roadVolunteerCount==0) {
-        console.log("No volunteers for "+rName);
-              //Show form
-              $('.info-box').hide();
-              $('#volunteer-form-container').show();
+        // console.log("No volunteers for "+rName);
+        //Show count of volunteers
+        document.getElementById("volunteer-count").innerHTML="no volunteers";
 
-              //Set value of road name in the form
-              document.getElementById("roadName").value = rName;
-            } else if(roadVolunteerCount<3) {
-              console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName);
-              //Show form
-              $('.info-box').hide();
-              $('#volunteer-form-container').show();
+        //Set value of road name in the form
+        document.getElementById("roadName").value = rName;
 
-              //Set value of road name in the form
-              document.getElementById("roadName").value = rName;
-            }
-          } else {
-            console.log('No data found.');
-          }
-        }, function(response) {
-          console.log('Error: ' + response.result.error.message);
-        });
+        //Show form
+        $('.info-box').hide();
+        $('#volunteer-form-container').show();
+      } else if(roadVolunteerCount<3) {
+        // console.log("Total "+roadVolunteerCount+" volunteer(s) for "+rName);
+
+        //Show count of volunteers
+        if(roadVolunteerCount==1) {
+          document.getElementById("volunteer-count").innerHTML="1 volunteer";
+        } else {
+          document.getElementById("volunteer-count").innerHTML=roadVolunteerCount+" volunteers";
+        }
+
+        //Set value of road name in the form
+        document.getElementById("roadName").value = rName;
+        
+        //Show form
+        $('.info-box').hide();
+        $('#volunteer-form-container').show();
+      }
+    } else {
+      console.log('No data found.');
+    }
+  }, function(response) {
+    console.log('Error: ' + response.result.error.message);
+  });
 }
 
 function addRoadForVolunteer(rName, vName, vEmail) {
@@ -385,7 +415,9 @@ function addRoadForVolunteer(rName, vName, vEmail) {
         var row = range.values[i];
         if(row[2]==rName) {
           roadVolunteerCount++;
-          if(row[0]==vName || row[1]==vEmail)
+          //Removing flag to check for both email & name
+          // if(row[0]==vName || row[1]==vEmail)
+          if(row[0].toUpperCase()==vName.toUpperCase())
           {
             //Checking for duplicate entries (Name or email)
             duplicateFlag = true;
@@ -442,5 +474,296 @@ function addRoadForVolunteer(rName, vName, vEmail) {
 </script>
 <script src="https://apis.google.com/js/client.js?onload=checkAuth">
 </script>
+
+<!-- Manual list of roads for drop down, ideally should be fetched from a spreadsheet/csv -->
+
+<datalist id="roads">
+  <option value='17th Main (S. Nijalingappa Road)'>
+  <option value='Aa Na Krishnaraya Road'>
+  <option value='Abdul Kalam Road'>
+  <option value='Acharya Dr Sarvepalli Radhakrishnan Road'>
+  <option value='Acharya Govind Vittal Bhave Road'>
+  <option value='Achutharaya Mudaliar Road'>
+  <option value='Aga Abbas Ali Road'>
+  <option value='Ahmed Sait Road'>
+  <option value='Albert Street'>
+  <option value='Ali Askar Road'>
+  <option value='Ali Asker Road'>
+  <option value='Ananda Rao Circle'>
+  <option value='Anil Kumble Circle'>
+  <option value='Annadanappa Lane'>
+  <option value='Annaswamy Mudaliar Road'>
+  <option value='Aralu Mallige Parthsarathy Road'>
+  <option value='Arcot Sreenivaschar Street'>
+  <option value='Arumugam Circle'>
+  <option value='Arumugam Mudaliar Road'>
+  <option value='Ashley Park Road'>
+  <option value='Ashoka Pillar Circle'>
+  <option value='Ashoka Road'>
+  <option value='Aurobindo Circle'>
+  <option value='B P Wadia Road'>
+  <option value='B Srinivas Murthy Road'>
+  <option value='B. Narayana Swamappa Road'>
+  <option value='B.A Basith Road'>
+  <option value='B.M.Shri Circle'>
+  <option value='B.V.K. Iyengar Road'>
+  <option value='Babboor Giddanna Road'>
+  <option value='Balappa Garden'>
+  <option value='Bandi Reddy Circle'>
+  <option value='Basappa Circle'>
+  <option value='Basappa Road'>
+  <option value='Bashayam Circle'>
+  <option value='Bashyam Circle'>
+  <option value='Berlie Street'>
+  <option value='Bhagat Singh Main Road'>
+  <option value='Bhaskaran Road'>
+  <option value='Boothiah Lane'>
+  <option value='Bourdillon Road'>
+  <option value='Brunton Road'>
+  <option value='Buddha Street'>
+  <option value='C J Venkatesa Das Road'>
+  <option value='Carleston Road'>
+  <option value='Chandrappa Circle'>
+  <option value='Chandrashekhar Road'>
+  <option value='Charles Campbell Road'>
+  <option value='Chord Road(D. R Bendre Road)'>
+  <option value='Chowdiah Road'>
+  <option value='Clarke Road'>
+  <option value='Cleveland Road'>
+  <option value='Cline Road'>
+  <option value='CNR Rao Underpass'>
+  <option value='Cockburn Road'>
+  <option value='Coles Park'>
+  <option value='Coles Road'>
+  <option value='Cookson Road'>
+  <option value='Cornwell Road'>
+  <option value='Cubbon Road'>
+  <option value='Cunningham Road'>
+  <option value='Curley Street'>
+  <option value='CV Raman Avenue'>
+  <option value='CV Raman Road'>
+  <option value='D Rajgopal Road'>
+  <option value='D\' Souza Road'>
+  <option value='DaCosta Square'>
+  <option value='Davis Road'>
+  <option value='Devaiah Park'>
+  <option value='Devaiah Park Overbridge'>
+  <option value='Devaraj Urs Road'>
+  <option value='Dickenson Road'>
+  <option value='Dr B R Ambedkar Veedhi'>
+  <option value='Dr B.R .Ambedkar Veedhi'>
+  <option value='Dr Rajkumar Road'>
+  <option value='Dr. Ambedkar Road'>
+  <option value='Dr. G. Raghava Road'>
+  <option value='Dr. M H Marigowda Road'>
+  <option value='Dr. Rajkumar Road'>
+  <option value='DSouza Circle'>
+  <option value='DV Gundappa Road'>
+  <option value='DVG Road'>
+  <option value='FM Cariappa Road (Residency Road)'>
+  <option value='G R Vishwanath Underpass'>
+  <option value='Gokhale Road'>
+  <option value='Gollar Ganganan Lane'>
+  <option value='Gopala Gowda Circle'>
+  <option value='Govindappa Road'>
+  <option value='Gubbi Thotadappa Road'>
+  <option value='H Siddaiah Road'>
+  <option value='H Siddiah Circle'>
+  <option value='H. Siddiah Road'>
+  <option value='H. V. Nanjundayya Road.'>
+  <option value='Haines Road'>
+  <option value='Harris Road'>
+  <option value='Haudin Road'>
+  <option value='Hayes Road'>
+  <option value='Hazrat Kambal Posh Road'>
+  <option value='Hudson Circle'>
+  <option value='Ibrahim Sahib Street'>
+  <option value='Indira Street'>
+  <option value='Jasma Devi Baham Road'>
+  <option value='Jawaharlal Nehru Road'>
+  <option value='JC Road'>
+  <option value='Jeevaraj Alva Road'>
+  <option value='K R Circle'>
+  <option value='K.M. Naganna Road'>
+  <option value='Kalidasa Road'>
+  <option value='Kamaraj Road'>
+  <option value='Kamaraja Road Circle'>
+  <option value='Kanakadasa Road'>
+  <option value='Karim Khan Road'>
+  <option value='Kasturba Road'>
+  <option value='Kavi Lakshmisha Road'>
+  <option value='Kemapanna Lane'>
+  <option value='Kempe Gowda Road'>
+  <option value='Kempegowda Road'>
+  <option value='Kenchappa Road'>
+  <option value='Kengal Hanumanthaiah Circle (Lalbagh Circle)'>
+  <option value='Kengel Hanumanthiah Road'>
+  <option value='Kensington Road'>
+  <option value='Kondaji Basappa Road'>
+  <option value='Koteshwara Road'>
+  <option value='KR Road'>
+  <option value='Kranthikavi Sarvagnya Road'>
+  <option value='Krishna Garden'>
+  <option value='Krishna Rajendra Circle'>
+  <option value='Krishna Rajendra Road'>
+  <option value='Krishna Rao Park Walk Trail'>
+  <option value='Krishna Rao Road'>
+  <option value='Krishna Singh Lane'>
+  <option value='Krishnananda Road'>
+  <option value='Krumbiegal Road'>
+  <option value='Krumbigal Road'>
+  <option value='Kullappa Circle'>
+  <option value='Kuvempu Circle'>
+  <option value='Lady Curzon Road'>
+  <option value='Lakshmana Rao Road'>
+  <option value='Lakshmi Road'>
+  <option value='Langford Road (Kadidal Manjappa Road)'>
+  <option value='Lavelle Road'>
+  <option value='Lazar Road'>
+  <option value='Lazer Road - Netaji Road'>
+  <option value='Lewis Road'>
+  <option value='Linden Street'>
+  <option value='Lloyd Road'>
+  <option value='M S Ramaiah Road'>
+  <option value='M V Jayaram Road'>
+  <option value='M Viswesvaraya Road'>
+  <option value='M.P.L. Sastry Road'>
+  <option value='Madavan Park Jayanagara 3Rd Block'>
+  <option value='Madhava Rao Circle'>
+  <option value='Madhavaraya Mudaliar Road'>
+  <option value='Mahakavi Kuvempu Road'>
+  <option value='Mahatma Gandhi Road'>
+  <option value='Mari Munianna Lane'>
+  <option value='McPherson Road'>
+  <option value='Mekhri Circle'>
+  <option value='Millers Road'>
+  <option value='Milton Street'>
+  <option value='Mission Road (Kalinga Rao Road)'>
+  <option value='MLA Ravisubramanya road'>
+  <option value='Mohan Kumar Road'>
+  <option value='Moore Road'>
+  <option value='Mother Teresa Road'>
+  <option value='MS Ramaiah Road'>
+  <option value='Muniswamappa Road'>
+  <option value='Muniyathappa Lane'>
+  <option value='Munniswamy Road'>
+  <option value='Murphy Road'>
+  <option value='MV Jayaram Road'>
+  <option value='N. S. Iyengar Street'>
+  <option value='Nagasandra Circle Basavanagudi'>
+  <option value='Nanjappa Circle'>
+  <option value='Nanjappa Road'>
+  <option value='Narasimharaja Road'>
+  <option value='Narayan Pillai Street'>
+  <option value='Nawab Hyder Ali Khan Road'>
+  <option value='Nawab Hyder Ali Road'>
+  <option value='Neelakantan Circle'>
+  <option value='Nehru Circle'>
+  <option value='Nehru Road'>
+  <option value='Netaji Road'>
+  <option value='Nettakallappa Circle'>
+  <option value='Norris Road'>
+  <option value='O\'Shaungnessy Road'>
+  <option value='Obaiah Lane'>
+  <option value='Obamma Lane'>
+  <option value='Pampa Mahakavi Road'>
+  <option value='Pandurangaswamy Lane'>
+  <option value='Pappana Street'>
+  <option value='Paramahansa Yogananda Road'>
+  <option value='Pehalwan Krishnappa Road'>
+  <option value='Pemme Gowda Road'>
+  <option value='Pillanna Garden'>
+  <option value='Pillappa Lane'>
+  <option value='Police Thimmaya Circle'>
+  <option value='Poorna Prasad Road'>
+  <option value='Poorna Venkata Rao Road'>
+  <option value='Prof Ashirvadam Junction'>
+  <option value='PSK Naidu Road'>
+  <option value='Puttalingaiah Road'>
+  <option value='Puttana Road'>
+  <option value='Puttanna Chetty Road'>
+  <option value='R Subbanna Circle'>
+  <option value='Rahman Khan Road'>
+  <option value='Rajaram Mohan Roy Road'>
+  <option value='Rajiv Gandhi Circle'>
+  <option value='Ramaiah Lane'>
+  <option value='Ramakrishna Road'>
+  <option value='Ramana Maharshi Road'>
+  <option value='Rangaswamy Road'>
+  <option value='Rani Sarla Devi Circle'>
+  <option value='Raqavappa Road'>
+  <option value='Rashtrakavi Kuvempu Circle'>
+  <option value='Rashtrakavi Kuvempu Road'>
+  <option value='Rathna Avenue'>
+  <option value='Rhenius Street'>
+  <option value='Richmond Circle'>
+  <option value='Richmond Road'>
+  <option value='Robertson Road'>
+  <option value='Royan Circle'>
+  <option value='Rukshana Lakshman Avenue'>
+  <option value='Sadar Patrappa Road'>
+  <option value='Sajjan Rao Circle'>
+  <option value='Sajjan Rao Road'>
+  <option value='Sanjeevappa Lane'>
+  <option value='Sankar Nag Road'>
+  <option value='Sankey Tank Road'>
+  <option value='Saunders Road'>
+  <option value='Seppings Rd'>
+  <option value='Sethu Rao Road'>
+  <option value='Setlur Street'>
+  <option value='Shamanna Gowda Road'>
+  <option value='Shamannah Garden'>
+  <option value='Shamannah Lane'>
+  <option value='Shanti Road'>
+  <option value='Sheshadri Road'>
+  <option value='Shivaji Road'>
+  <option value='Shoolay Circle'>
+  <option value='Shyamaraja Iyengar Road'>
+  <option value='Siddaiah Road'>
+  <option value='Siddanna Lane'>
+  <option value='Siddhaiah Puranik Road'>
+  <option value='Sidhdhavanahalli Krishnasharma Road'>
+  <option value='Spencer Road'>
+  <option value='Sri R. Nanjundappa Road'>
+  <option value='Sri Y. Ramachandra Road'>
+  <option value='Sri. M. L. Subbaraju Rd.'>
+  <option value='Srinivasiah Road'>
+  <option value='Stephens Road'>
+  <option value='Subbaiah Circle'>
+  <option value='Subbaraju Road'>
+  <option value='Sundaramurthi Road'>
+  <option value='Suranjandas Road'>
+  <option value='Susheela Road'>
+  <option value='Swamy Vivekananda Road'>
+  <option value='Swamy Vivekananda Road (Old Madras Road)'>
+  <option value='Swati Road'>
+  <option value='T Chowdiah Road'>
+  <option value='T Thimmiah Road'>
+  <option value='T. Nanjundappa Road'>
+  <option value='T.C.M. Royan Road'>
+  <option value='Tagore Circle'>
+  <option value='Thamarai Kannan Road'>
+  <option value='Thimmaiah Road'>
+  <option value='Thiru Valluvar Circle'>
+  <option value='Thyagi Palanivelu Road'>
+  <option value='Usman Khan Road'>
+  <option value='V S Raju Road'>
+  <option value='Vatal Nagaraj Road'>
+  <option value='Veerappa Reddy Lane'>
+  <option value='Venkatappa Road'>
+  <option value='Venkataswamy Naidu Road'>
+  <option value='Venkatesh Murthy Road'>
+  <option value='Victoria Road'>
+  <option value='Vishwanath Rao Road'>
+  <option value='Viswanath Nagenhalli Main Road'>
+  <option value='Viswesvariah Road'>
+  <option value='Vittal Mallya Road'>
+  <option value='Viviani Road'>
+  <option value='W H Hanumanthappa Road'>
+  <option value='Walker Lane'>
+  <option value='Websters Road'>
+  <option value='Wheeler Road'>
+  <option value='Yamuna Bai Road'>
+</datalist>
 </body>
 </html>
